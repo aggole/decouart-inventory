@@ -239,7 +239,7 @@ def load_recent_orders(limit: int = 40) -> pd.DataFrame:
     engine = get_engine()
     df = pd.read_sql_query(f"""
         SELECT date_recorded AS "Date", phone_model AS "Phone Model",
-               quantity AS "Qty", status AS "Status"
+               quantity AS "Qty", status AS "Status", COALESCE(note, '') AS "Note"
         FROM order_batches
         ORDER BY id DESC
         LIMIT {limit}
@@ -247,25 +247,25 @@ def load_recent_orders(limit: int = 40) -> pd.DataFrame:
     return df
 
 
-def submit_order(phone_model: str, quantity: int):
+def submit_order(phone_model: str, quantity: int, note: str = ""):
     execute_write("""
-        INSERT INTO order_batches (date_recorded, phone_model, quantity, status)
-        VALUES (%s, %s, %s, 'Pending')
-    """, (date.today().isoformat(), phone_model, quantity))
+        INSERT INTO order_batches (date_recorded, phone_model, quantity, status, note)
+        VALUES (%s, %s, %s, 'Pending', %s)
+    """, (date.today().isoformat(), phone_model, quantity, note.strip()))
 
 
 def load_pending_orders_for_edit() -> list[dict]:
     rows = execute_read("""
-        SELECT id, date_recorded, phone_model, quantity 
+        SELECT id, date_recorded, phone_model, quantity, COALESCE(note, '') AS note
         FROM order_batches 
         WHERE status = 'Pending'
         ORDER BY id DESC
     """)
-    return [{"id": r["id"], "label": f"#{r['id']} — {r['phone_model']} (Qty: {r['quantity']}) — {r['date_recorded']}", "phone_model": r["phone_model"], "quantity": r["quantity"]} for r in rows]
+    return [{"id": r["id"], "label": f"#{r['id']} — {r['phone_model']} (Qty: {r['quantity']}) — {r['date_recorded']}", "phone_model": r["phone_model"], "quantity": r["quantity"], "note": r["note"]} for r in rows]
 
 
-def update_logged_order(order_id: int, new_model: str, new_qty: int):
-    execute_write("UPDATE order_batches SET phone_model = %s, quantity = %s WHERE id = %s", (new_model, new_qty, order_id))
+def update_logged_order(order_id: int, new_model: str, new_qty: int, new_note: str = ""):
+    execute_write("UPDATE order_batches SET phone_model = %s, quantity = %s, note = %s WHERE id = %s", (new_model, new_qty, new_note.strip(), order_id))
 
 
 def delete_logged_order(order_id: int):
@@ -473,6 +473,12 @@ with tab_log:
                 step=1,
                 key="form_qty",
             )
+        note = st.text_input(
+            "Note (optional)",
+            placeholder="e.g. Rush order, customer name, special colour...",
+            max_chars=120,
+            key="form_note",
+        )
 
         submitted = st.form_submit_button("➕  Add to Pending Batch",
                                           use_container_width=True)
@@ -481,10 +487,11 @@ with tab_log:
         if quantity < 1:
             st.error("Quantity must be at least 1.")
         else:
-            submit_order(selected_model, quantity)
+            submit_order(selected_model, quantity, note)
             st.success(
                 f"✅ Logged **{quantity}** unit(s) of **{selected_model}** "
                 f"as Pending for {date.today().strftime('%b %d, %Y')}."
+                + (f" Note: *{note}*" if note.strip() else "")
             )
             load_dashboard_data.clear()
             load_recent_orders.clear()
@@ -517,6 +524,13 @@ with tab_log:
                     edit_model = st.selectbox("Update Phone Model", options=models, index=m_idx)
                 with col_q:
                     edit_qty = st.number_input("Update Quantity", min_value=1, max_value=500, value=int(selected_order["quantity"]), step=1)
+
+                edit_note = st.text_input(
+                    "Update Note (optional)",
+                    value=selected_order.get("note", ""),
+                    placeholder="e.g. Rush order, customer name...",
+                    max_chars=120,
+                )
                 
                 col_btn_update, col_btn_del = st.columns(2)
                 with col_btn_update:
@@ -525,7 +539,7 @@ with tab_log:
                     delete_btn = st.form_submit_button("🗑️ Delete Order", use_container_width=True)
                     
             if update_btn:
-                update_logged_order(selected_order["id"], edit_model, edit_qty)
+                update_logged_order(selected_order["id"], edit_model, edit_qty, edit_note)
                 st.success(f"✅ Updated Order #{selected_order['id']}.")
                 load_dashboard_data.clear()
                 load_recent_orders.clear()
