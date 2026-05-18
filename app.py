@@ -552,8 +552,7 @@ with tab_log:
             elif val == "Fulfilled":
                 return "color: #2dd4bf; font-weight: 600;"
             return ""
-
-        styled_orders = orders_df.style.applymap(colour_status, subset=["Status"])
+        styled_orders = orders_df.style.map(colour_status, subset=["Status"])
         st.dataframe(styled_orders, use_container_width=True, hide_index=True)
 
 
