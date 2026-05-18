@@ -658,4 +658,5 @@ with tab_stock:
     st.markdown('<p class="section-head">Current Stock Levels</p>',
                 unsafe_allow_html=True)
     show_df = inv_df[["Phone Model", "On Hand", "Safety Buffer", "Net Inventory"]].copy()
-    st.dataframe(show_df, use_container_width=True, hide_index=True)
+    # Dynamically set height (approx 36px per row + 43px for header) to avoid internal scroll
+    st.dataframe(show_df, use_container_width=True, hide_index=True, height=len(show_df) * 36 + 43)
