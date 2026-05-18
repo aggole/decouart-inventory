@@ -1,0 +1,12 @@
+# Streamlit secrets (VERY IMPORTANT to not share your database password)
+.streamlit/
+secrets.toml
+
+# Local SQLite databases
+*.db
+inventory.db
+
+# Python cache files
+__pycache__/
+*.pyc
+.DS_Store
