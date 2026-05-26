@@ -553,21 +553,33 @@ with tab_log:
                 st.rerun()
 
     st.markdown("---")
-    st.markdown('<p class="section-head">Recent Order Log</p>',
-                unsafe_allow_html=True)
+    col_log_head, col_log_btn = st.columns([3, 1])
+    with col_log_head:
+        st.markdown('<p class="section-head">Recent Order Log</p>',
+                    unsafe_allow_html=True)
+    with col_log_btn:
+        show_fulfilled = st.toggle("Show Fulfilled", value=False, key="show_fulfilled_toggle")
 
     orders_df = load_recent_orders()
     if orders_df.empty:
         st.info("No orders have been logged yet.")
     else:
-        def colour_status(val):
-            if val == "Pending":
-                return "color: #f5a623; font-weight: 600;"
-            elif val == "Fulfilled":
-                return "color: #2dd4bf; font-weight: 600;"
-            return ""
-        styled_orders = orders_df.style.map(colour_status, subset=["Status"])
-        st.dataframe(styled_orders, use_container_width=True, hide_index=True)
+        if not show_fulfilled:
+            display_orders = orders_df[orders_df["Status"] == "Pending"]
+        else:
+            display_orders = orders_df
+
+        if display_orders.empty:
+            st.info("No pending orders. Toggle **Show Fulfilled** above to see past orders.")
+        else:
+            def colour_status(val):
+                if val == "Pending":
+                    return "color: #f5a623; font-weight: 600;"
+                elif val == "Fulfilled":
+                    return "color: #2dd4bf; font-weight: 600;"
+                return ""
+            styled_orders = display_orders.style.map(colour_status, subset=["Status"])
+            st.dataframe(styled_orders, use_container_width=True, hide_index=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
