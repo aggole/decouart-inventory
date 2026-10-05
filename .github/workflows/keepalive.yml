@@ -1,0 +1,14 @@
+name: Supabase keepalive
+on:
+  schedule:
+    - cron: "0 3 */3 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install psycopg2-binary
+          python -c "import os, psycopg2; c = psycopg2.connect(os.environ['DB']); c.cursor().execute('select 1'); print('ok')"
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
