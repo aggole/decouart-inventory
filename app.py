@@ -168,7 +168,9 @@ def get_db_url():
     return st.secrets["connections"]["postgresql"]["url"]
 
 def get_engine():
-    return create_engine(get_db_url())
+    # Force psycopg2: newer SQLAlchemy defaults plain postgresql:// to psycopg v3
+    url = get_db_url().replace("postgresql://", "postgresql+psycopg2://", 1)
+    return create_engine(url)
 
 def get_conn():
     return psycopg2.connect(get_db_url(), cursor_factory=DictCursor)
