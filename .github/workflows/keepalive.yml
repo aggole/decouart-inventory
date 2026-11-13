@@ -1,7 +1,8 @@
 name: Supabase keepalive
-# Free Supabase projects pause after a period of inactivity. This reads real
-# rows once a day so the project always counts as in use. If it fails, GitHub
-# emails you, which is also an early warning that the database is down.
+# Free Supabase projects pause after 7 days without activity. A plain database
+# connection did NOT count (the project paused on 13 Nov 2026 despite pings
+# every 3 days), so this also calls the Supabase REST API, like a real client.
+# If it fails, GitHub emails you: an early warning that the database is down.
 on:
   schedule:
     - cron: "0 0 * * *"   # daily, 09:00 Japan time
@@ -10,8 +11,27 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          pip install psycopg2-binary
+      - name: Call the Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add the SUPABASE_URL and SUPABASE_ANON_KEY repository secrets"
+            exit 1
+          fi
+          curl --fail-with-body -sS -m 30 \
+            "$SUPABASE_URL/rest/v1/inventory?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY"
+          echo
+          echo "REST API ok"
+
+      - name: Read from the database
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          pip install -q psycopg2-binary
           python - <<'PY'
           import os, psycopg2
           conn = psycopg2.connect(os.environ["DB"], connect_timeout=30)
@@ -20,7 +40,5 @@ jobs:
               models = cur.fetchone()[0]
               cur.execute("SELECT count(*) FROM order_batches WHERE status = 'Pending'")
               pending = cur.fetchone()[0]
-          print(f"ok: {models} models, {pending} pending orders")
+          print(f"Database ok: {models} models, {pending} pending orders")
           PY
-        env:
-          DB: ${{ secrets.SUPABASE_DB_URL }}
