@@ -10,6 +10,8 @@ def render() -> None:
     inventory = db.load_inventory()
     models = inventory["Phone Model"].tolist()
 
+    _receive_stock(inventory)
+    st.markdown("---")
     _update_stock(inventory, models)
     st.markdown("---")
     _add_model()
@@ -23,9 +25,51 @@ def render() -> None:
     st.dataframe(table, width="stretch", hide_index=True, height=len(table) * 36 + 43)
 
 
+def _receive_stock(inventory) -> None:
+    section("📦 Receive Stock")
+    st.caption("Bought a batch? Enter how many of each model arrived and they'll be "
+               "added to on-hand stock. Leave the rest at 0.")
+    if inventory.empty:
+        st.info("Add a phone model below to get started.")
+        return
+
+    table = inventory[["Phone Model", "On Hand"]].assign(**{"Received": 0})
+    # a new key after each save gives a fresh table with every quantity back at 0
+    version = st.session_state.get("receive_version", 0)
+    with st.form(f"receive_form_{version}"):
+        edited = st.data_editor(
+            table,
+            hide_index=True,
+            width="stretch",
+            height=(len(table) + 1) * 35 + 3,
+            disabled=["Phone Model", "On Hand"],
+            column_config={
+                "Received": st.column_config.NumberColumn(
+                    "Received", min_value=0, max_value=9999, step=1, required=True),
+            },
+            key=f"receive_editor_{version}",
+        )
+        submitted = st.form_submit_button("📦  Add to Stock", width="stretch")
+
+    if not submitted:
+        return
+    received = {
+        row["Phone Model"]: int(row["Received"])
+        for _, row in edited.iterrows() if int(row["Received"] or 0) > 0
+    }
+    if not received:
+        st.warning("Enter a quantity for at least one model.")
+        return
+    db.receive_stock(received)
+    st.session_state["receive_version"] = version + 1
+    summary = ", ".join(f"{qty} × {model}" for model, qty in received.items())
+    flash(f"✅ Added to stock: {summary}.")
+    st.rerun()
+
+
 def _update_stock(inventory, models: list[str]) -> None:
-    section("Update On-Hand Stock")
-    st.caption("Use this panel after a stock delivery to set accurate on-hand counts.")
+    section("Correct On-Hand Count")
+    st.caption("Use this to set the exact count, e.g. after a stocktake.")
     if not models:
         st.info("Add a phone model below to get started.")
         return

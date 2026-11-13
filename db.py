@@ -176,6 +176,20 @@ def fulfill_all_pending() -> tuple[int, list[dict]]:
     return len(rows), shortfalls
 
 
+def receive_stock(quantities: dict[str, int]) -> None:
+    """Add a delivery to on-hand stock, e.g. {"iPhone 17": 20, "iPhone 15": 20}.
+    All models are updated together in one transaction."""
+    rows = [{"model": m, "qty": q} for m, q in quantities.items() if q > 0]
+    if not rows:
+        return
+    with get_engine().begin() as conn:
+        conn.execute(text("""
+            UPDATE inventory SET on_hand_stock = on_hand_stock + :qty
+            WHERE phone_model = :model
+        """), rows)
+    clear_caches()
+
+
 def set_stock(phone_model: str, quantity: int) -> None:
     _write("UPDATE inventory SET on_hand_stock = :qty WHERE phone_model = :model",
            qty=quantity, model=phone_model)
