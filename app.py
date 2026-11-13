@@ -188,6 +188,13 @@ def execute_write(query: str, params: tuple = None):
         cur.close()
         conn.close()
 
+@st.cache_resource
+def ensure_schema():
+    """Add columns newer app versions rely on, if the database predates them."""
+    execute_write("ALTER TABLE order_batches ADD COLUMN IF NOT EXISTS note TEXT")
+    return True
+
+
 def execute_read(query: str, params: tuple = None, fetchone=False):
     conn = get_conn()
     cur = conn.cursor()
@@ -331,6 +338,8 @@ def rename_model(old_name: str, new_name: str) -> bool:
     execute_write("UPDATE inventory SET phone_model = %s WHERE phone_model = %s", (new_name, old_name))
     return True
 
+
+ensure_schema()
 
 # ── page header ──────────────────────────────────────────────────────────────
 st.markdown("""

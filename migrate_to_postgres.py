@@ -2,7 +2,8 @@ import sqlite3
 import psycopg2
 import os
 
-DB_URI = "postgresql://postgres.kussgclzjroauawnabnc:c8tsehcQvJpt$fT@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres"
+# Set SUPABASE_DB_URL in your environment; never commit the password.
+DB_URI = os.environ["SUPABASE_DB_URL"]
 SQLITE_PATH = os.path.join(os.path.dirname(__file__), "inventory.db")
 
 def migrate():
@@ -34,6 +35,7 @@ def migrate():
             phone_model TEXT NOT NULL,
             quantity INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Fulfilled')),
+            note TEXT,
             FOREIGN KEY (phone_model) REFERENCES inventory(phone_model) ON UPDATE CASCADE ON DELETE CASCADE
         )
     """)
