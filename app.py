@@ -36,8 +36,12 @@ st.markdown("""
 
 show_flash()
 
+# key + on_change keep you on the same tab after saving (st.rerun would otherwise
+# jump back to the Dashboard)
 tab_dashboard, tab_log, tab_stock = st.tabs(
-    ["📊  Dashboard", "➕  Log Order", "🔧  Stock Manager"]
+    ["📊  Dashboard", "➕  Log Order", "🔧  Stock Manager"],
+    key="main_tab",
+    on_change="rerun",
 )
 
 with tab_dashboard:
